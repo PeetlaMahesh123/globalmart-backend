@@ -80,7 +80,7 @@ spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
 ### Step 1: Clone repository
 
 ```
-git clone https://github.com/YOUR_USERNAME/globalmart-backend.git
+git clone https://github.com/PeetlaMahesh123/globalmart-backend.git
 ```
 
 ### Step 2: Go to project folder
