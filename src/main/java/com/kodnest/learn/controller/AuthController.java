@@ -12,6 +12,7 @@ import com.kodnest.learn.entity.User;
 import com.kodnest.learn.service.AuthService;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
@@ -69,16 +70,30 @@ public class AuthController {
 
     // ================= LOGOUT =================
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
+    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // Retrieve authenticated user from the request
+            User user = (User) request.getAttribute("authenticatedUser");
 
-        Cookie cookie = new Cookie("authToken", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);  // delete cookie
+            // Delegate logout operation to the service layer
+            authService.logout(user);
 
-        response.addCookie(cookie);
+            // Clear the authentication token cookie
+            Cookie cookie = new Cookie("authToken", null);
+            cookie.setHttpOnly(true);
+            cookie.setMaxAge(0);
+            cookie.setPath("/");
+            response.addCookie(cookie);
 
-        return ResponseEntity.ok(Map.of("message", "Logout successful"));
+            // Success response
+            Map<String, String> responseBody = new HashMap<>();
+            responseBody.put("message", "Logout successful");
+            return ResponseEntity.ok(responseBody);
+        } catch (RuntimeException e) {
+            // Error response
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Logout failed");
+            return ResponseEntity.status(500).body(errorResponse);
+        }
     }
 }
