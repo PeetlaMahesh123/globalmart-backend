@@ -5,16 +5,7 @@ It provides REST APIs for user authentication, product management, cart operatio
 
 ---
 
-## 🚀 Tech Stack
 
-* **Java 21**
-* **Spring Boot**
-* **Spring Data JPA**
-* **Spring Security**
-* **MySQL Database**
-* **Maven**
-* **REST APIs**
-* **JWT Authentication (if implemented)**
 
 ---
 
