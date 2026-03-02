@@ -20,23 +20,7 @@ It provides REST APIs for user authentication, product management, cart operatio
 ## 📂 Project Structure
 
 ```
-globalmart-backend/
-│
-├── src/main/java/com/globalmart/
-│   ├── controller/      # REST Controllers
-│   ├── service/         # Business logic
-│   ├── repository/      # Database access layer
-│   ├── model/           # Entity classes
-│   └── GlobalmartApplication.java
-│
-├── src/main/resources/
-│   ├── application.properties
-│
-├── pom.xml
-├── mvnw
-├── mvnw.cmd
-└── README.md
-```
+
 
 ---
 
