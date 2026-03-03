@@ -4,7 +4,7 @@ This is the **Spring Boot backend** for the GlobalMart E-Commerce application.
 It provides REST APIs for user authentication, product management, cart operations, and order processing.
 
 ---
-
+## 🚀 Tech Stack
 
 * **Java 21**
 * **Spring Boot**
