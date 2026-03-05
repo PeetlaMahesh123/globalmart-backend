@@ -1,5 +1,7 @@
 package com.kodnest.learn.repository;
 
+
+import com.kodnest.learn.entity.Order;
 import com.kodnest.learn.entity.OrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

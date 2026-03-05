@@ -1,10 +1,9 @@
-FROM eclipse-temurin:21-jdk
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-COPY . .
+COPY target/*.jar app.jar
 
-RUN chmod +x mvnw
-RUN ./mvnw clean package -DskipTests
+EXPOSE 9096
 
-CMD ["java", "-jar", "target/globalmart-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

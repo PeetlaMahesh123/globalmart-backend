@@ -49,9 +49,9 @@ public class AdminUserService {
 
 	        // Save updated user
 	        return userRepository.save(existingUser);
-    }
+ }
 
-    public User getUserById(Integer userId) {
-        return userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
-    }
+ public User getUserById(Integer userId) {
+     return userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+ }
 }

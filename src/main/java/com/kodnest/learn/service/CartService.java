@@ -1,168 +1,152 @@
 package com.kodnest.learn.service;
 
-import java.util.*;
 
+import com.kodnest.learn.entity.CartItem;
+import com.kodnest.learn.entity.User;
+import com.kodnest.learn.entity.Product;
+import com.kodnest.learn.entity.ProductImage;
+import com.kodnest.learn.repository.CartRepository;
+import com.kodnest.learn.repository.ProductImageRepository;
+import com.kodnest.learn.repository.ProductRepository;
+import com.kodnest.learn.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.kodnest.learn.entity.CartItem;
-import com.kodnest.learn.entity.Product;
-import com.kodnest.learn.entity.ProductImage;
-import com.kodnest.learn.entity.User;
-import com.kodnest.learn.repository.CartRepository;
-import com.kodnest.learn.repository.ProductRepository;
-import com.kodnest.learn.repository.ProductImageRepository;
-import com.kodnest.learn.repository.UserRepository;
+import java.util.*;
 
 @Service
 public class CartService {
 
-    @Autowired
-    private CartRepository cartRepository;
+	@Autowired
+	private CartRepository cartRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+	@Autowired
+	private UserRepository userRepository;
 
-    @Autowired
-    private ProductRepository productRepository;
+	@Autowired
+	private ProductRepository productRepository;
 
-    @Autowired
-    private ProductImageRepository productImageRepository;
+	@Autowired
+	private ProductImageRepository productImageRepository;
 
+	// Get the total cart item count for a user
+	public int getCartItemCount(int userId) {
+		return cartRepository.countTotalItems(userId);
+	}
 
-    // Get total cart item count
-    public int getCartItemCount(int userId) {
-        return cartRepository.countTotalItems(userId);
-    }
+	// Add an item to the cart
+	public void addToCart(int userId, int productId, int quantity) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
 
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new IllegalArgumentException("Product not found with ID: " + productId));
 
-    // Add item to cart
-    public void addToCart(int userId, int productId, int quantity) {
+		// Fetch cart item for this userId and productId
+		Optional<CartItem> existingItem = cartRepository.findByUserAndProduct(userId, productId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found with ID: " + userId));
+		if (existingItem.isPresent()) {
+			CartItem cartItem = existingItem.get();
+			cartItem.setQuantity(cartItem.getQuantity() + quantity);
+			cartRepository.save(cartItem);
+		} else {
+			CartItem newItem = new CartItem(user, product, quantity);
+			cartRepository.save(newItem);
+		}
+	}
 
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Product not found with ID: " + productId));
+	// Get Cart Items for a User
+	public Map<String, Object> getCartItems(int userId) {
+		// Fetch the cart items for the user with product details
+		List<CartItem> cartItems = cartRepository.findCartItemsWithProductDetails(userId);
 
-        Optional<CartItem> existingItem =
-                cartRepository.findByUserAndProduct(userId, productId);
+		// Create a response map to hold the cart details
+		Map<String, Object> response = new HashMap<>();
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        if (existingItem.isPresent()) {
+		response.put("username", user.getUsername());
+		response.put("role", user.getRole().toString());
 
-            CartItem cartItem = existingItem.get();
-            cartItem.setQuantity(cartItem.getQuantity() + quantity);
-            cartRepository.save(cartItem);
+		// List to hold the product details
+		List<Map<String, Object>> products = new ArrayList<>();
+		int overallTotalPrice = 0;
 
-        } else {
+		for (CartItem cartItem : cartItems) {
+			Map<String, Object> productDetails = new HashMap<>();
 
-            CartItem newItem = new CartItem(user, product, quantity);
-            cartRepository.save(newItem);
-        }
-    }
+			// Get product details
+			Product product = cartItem.getProduct();
 
+			// Fetch product images from the ProductImageRepository
+			List<ProductImage> productImages = productImageRepository.findByProduct_ProductId(product.getProductId());
+			String imageUrl = null;
 
-    // Get cart items with full details
-    public Map<String, Object> getCartItems(int userId) {
+			if (productImages != null && !productImages.isEmpty()) {
+				// If there are images, get the first image's URL
+				imageUrl = productImages.get(0).getImageUrl();
+			} else {
+				// Set a default image if no images are available
+				imageUrl = "default-image-url";  // You can replace this with your default image URL
+			}
 
-        List<CartItem> cartItems =
-                cartRepository.findCartItemsWithProductDetails(userId);
+			// Populate product details into the map
+			productDetails.put("product_id", product.getProductId());
+			productDetails.put("image_url", imageUrl);
+			productDetails.put("name", product.getName());
+			productDetails.put("description", product.getDescription());
+			productDetails.put("price_per_unit", product.getPrice());
+			productDetails.put("quantity", cartItem.getQuantity());
+			productDetails.put("total_price", cartItem.getQuantity() * product.getPrice().doubleValue());
 
-        Map<String, Object> response = new HashMap<>();
+			// Add the product details to the products list
+			products.add(productDetails);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+			// Add to the overall total price
+			overallTotalPrice += cartItem.getQuantity() * product.getPrice().doubleValue();
+		}
 
-        response.put("username", user.getUsername());
-        response.put("role", user.getRole().toString());
+		// Prepare the final cart response
+		Map<String, Object> cart = new HashMap<>();
+		cart.put("products", products);
+		cart.put("overall_total_price", overallTotalPrice);
 
-        List<Map<String, Object>> products = new ArrayList<>();
+		// Add the cart details to the response
+		response.put("cart", cart);
 
-        double overallTotalPrice = 0;
+		return response;
+	}
 
-        for (CartItem cartItem : cartItems) {
+	// Update Cart Item Quantity
+	public void updateCartItemQuantity(int userId, int productId, int quantity) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-            Map<String, Object> productDetails = new HashMap<>();
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
-            Product product = cartItem.getProduct();
+		// Fetch cart item for this userId and productId
+		Optional<CartItem> existingItem = cartRepository.findByUserAndProduct(userId, productId);
 
-            List<ProductImage> images =
-                    productImageRepository.findByProduct_ProductId(
-                            product.getProductId());
+		if (existingItem.isPresent()) {
+			CartItem cartItem = existingItem.get();
+			if (quantity == 0) {
+				deleteCartItem(userId, productId);
+			} else {
+				cartItem.setQuantity(quantity);
+				cartRepository.save(cartItem);
+			}
+		}
+	}
 
-            String imageUrl = null;
+	// Delete Cart Item
+	public void deleteCartItem(int userId, int productId) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-            if (images != null && !images.isEmpty()) {
-                imageUrl = images.get(0).getImageUrl();
-            } else {
-                imageUrl = "default-image-url";
-            }
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
-            productDetails.put("product_id", product.getProductId());
-            productDetails.put("image_url", imageUrl);
-            productDetails.put("name", product.getName());
-            productDetails.put("description", product.getDescription());
-            productDetails.put("price_per_unit", product.getPrice());
-            productDetails.put("quantity", cartItem.getQuantity());
-
-            double totalPrice =
-                    cartItem.getQuantity() * product.getPrice().doubleValue();
-
-            productDetails.put("total_price", totalPrice);
-
-            products.add(productDetails);
-
-            overallTotalPrice += totalPrice;
-        }
-
-        Map<String, Object> cart = new HashMap<>();
-        cart.put("products", products);
-        cart.put("overall_total_price", overallTotalPrice);
-
-        response.put("cart", cart);
-
-        return response;
-    }
-
-
-    // Update cart item quantity
-    public void updateCartItemQuantity(int userId, int productId, int quantity) {
-
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-
-        Optional<CartItem> existingItem =
-                cartRepository.findByUserAndProduct(userId, productId);
-
-        if (existingItem.isPresent()) {
-
-            CartItem cartItem = existingItem.get();
-
-            if (quantity <= 0) {
-                deleteCartItem(userId, productId);
-            } else {
-                cartItem.setQuantity(quantity);
-                cartRepository.save(cartItem);
-            }
-        }
-    }
-
-
-    // Delete cart item
-    public void deleteCartItem(int userId, int productId) {
-
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-
-        cartRepository.deleteCartItem(userId, productId);
-    }
-
+		cartRepository.deleteCartItem(userId, productId);
+	}
 }

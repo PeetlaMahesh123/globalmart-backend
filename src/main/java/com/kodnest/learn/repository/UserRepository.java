@@ -1,12 +1,11 @@
 package com.kodnest.learn.repository;
 
-import com.kodnest.learn.entity.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.Optional;
 
-@Repository
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.kodnest.learn.entity.User;
+
 public interface UserRepository extends JpaRepository<User, Integer> {
 
     Optional<User> findByEmail(String email);

@@ -1,26 +1,29 @@
 package com.kodnest.learn.repository;
 
+
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.kodnest.learn.entity.JWTToken;
 
-import jakarta.transaction.Transactional;
-
+@Repository
 public interface JWTTokenRepository extends JpaRepository<JWTToken, Integer> {
 
-    // Find token by user ID
+    // Find a token by its value
+    @Query("SELECT j FROM JWTToken j WHERE j.token = :token")
+    Optional<JWTToken> findByToken(String token);
+
+    // Custom query to find tokens by user ID
     @Query("SELECT t FROM JWTToken t WHERE t.user.userId = :userId")
     JWTToken findByUserId(@Param("userId") int userId);
 
-    // ✅ ADD THIS METHOD
-    Optional<JWTToken> findByToken(String token);
-    
-   
     // Custom query to delete tokens by user ID
     @Modifying
     @Transactional

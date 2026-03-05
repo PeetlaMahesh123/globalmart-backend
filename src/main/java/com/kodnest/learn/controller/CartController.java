@@ -1,19 +1,22 @@
 package com.kodnest.learn.controller;
 
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
 
 import com.kodnest.learn.entity.User;
-import com.kodnest.learn.repository.UserRepository;
 import com.kodnest.learn.service.CartService;
 
+import jakarta.servlet.http.HttpServletRequest;
+
+import com.kodnest.learn.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
 @RestController
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RequestMapping("/api/cart")
-@CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true")
 public class CartController {
 
     @Autowired
@@ -22,156 +25,78 @@ public class CartController {
     @Autowired
     private UserRepository userRepository;
 
-
-    // =====================================================
-    // GET CART COUNT
-    // URL: /api/cart/items/count?username=Harish
-    // =====================================================
+    // Fetch userId from username coming from the filter and get cart item count
     @GetMapping("/items/count")
-    public ResponseEntity<Integer> getCartItemCount(
-            @RequestParam String username) {
-
-        System.out.println("Fetching cart count for username: " + username);
-
+    public ResponseEntity<Integer> getCartItemCount(@RequestParam String username) {
+        // Fetch user by username to get the userId
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found: " + username));
+                .orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
 
+        // Call the service to get the total cart item count
         int count = cartService.getCartItemCount(user.getUserId());
-
         return ResponseEntity.ok(count);
     }
 
-
-    // =====================================================
-    // GET CART ITEMS
-    // URL: /api/cart/items?username=Harish
-    // =====================================================
+    // Fetch all cart items for the user (based on username)
     @GetMapping("/items")
-    public ResponseEntity<Map<String, Object>> getCartItems(
-            @RequestParam String username) {
+    public ResponseEntity<Map<String, Object>> getCartItems(HttpServletRequest request) {
+        // Fetch user by username to get the userId
+    	User user= (User) request.getAttribute("authenticatedUser");
+     //   User user = userRepository.findByUsername(un)
+       //         .orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
 
-        System.out.println("Fetching cart items for username: " + username);
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found: " + username));
-
-        Map<String, Object> cart =
-                cartService.getCartItems(user.getUserId());
-
-        return ResponseEntity.ok(cart);
+        // Call the service to get cart items for the user
+        Map<String, Object> cartItems = cartService.getCartItems(user.getUserId());
+        return ResponseEntity.ok(cartItems);
     }
 
-
-    // =====================================================
-    // ADD TO CART
-    // URL: /api/cart/add
-    // BODY:
-    // {
-    //   "username": "Harish",
-    //   "productId": 27,
-    //   "quantity": 1
-    // }
-    // =====================================================
+    // Add an item to the cart
     @PostMapping("/add")
-    public ResponseEntity<String> addToCart(
-            @RequestBody Map<String, Object> request) {
+    @CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true")
+    public ResponseEntity<Void> addToCart(@RequestBody Map<String, Object> request) {
+        String username = (String) request.get("username");
+        int productId = (int) request.get("productId");
 
-        try {
+        // Handle quantity: Default to 1 if not provided
+        int quantity = request.containsKey("quantity") ? (int) request.get("quantity") : 1;
 
-            String username =
-                    request.get("username").toString();
+        // Fetch the user using username
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
 
-            int productId =
-                    Integer.parseInt(
-                            request.get("productId").toString());
-
-            int quantity =
-                    Integer.parseInt(
-                            request.get("quantity").toString());
-
-            System.out.println("Add to cart → username="
-                    + username + " productId=" + productId);
-
-            User user = userRepository.findByUsername(username)
-                    .orElseThrow(() ->
-                            new RuntimeException("User not found"));
-
-            cartService.addToCart(
-                    user.getUserId(),
-                    productId,
-                    quantity
-            );
-
-            return ResponseEntity.ok("Product added to cart");
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error adding to cart");
-        }
+        // Add the product to the cart
+        cartService.addToCart(user.getUserId(), productId, quantity);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-
-    // =====================================================
-    // UPDATE CART
-    // =====================================================
+    // Update Cart Item Quantity
     @PutMapping("/update")
-    public ResponseEntity<String> updateCart(
-            @RequestBody Map<String, Object> request) {
+    public ResponseEntity<Void> updateCartItemQuantity(@RequestBody Map<String, Object> request) {
+        String username = (String) request.get("username");
+        int productId = (int) request.get("productId");
+        int quantity = (int) request.get("quantity");
 
-        String username =
-                request.get("username").toString();
-
-        int productId =
-                Integer.parseInt(
-                        request.get("productId").toString());
-
-        int quantity =
-                Integer.parseInt(
-                        request.get("quantity").toString());
-
+        // Fetch the user using username
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
 
-        cartService.updateCartItemQuantity(
-                user.getUserId(),
-                productId,
-                quantity
-        );
-
-        return ResponseEntity.ok("Cart updated");
+        // Update the cart item quantity
+        cartService.updateCartItemQuantity(user.getUserId(), productId, quantity);
+        return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-
-    // =====================================================
-    // DELETE CART ITEM
-    // =====================================================
+    // Delete Cart Item
     @DeleteMapping("/delete")
-    public ResponseEntity<String> deleteCartItem(
-            @RequestBody Map<String, Object> request) {
+    public ResponseEntity<Void> deleteCartItem(@RequestBody Map<String, Object> request) {
+        String username = (String) request.get("username");
+        int productId = (int) request.get("productId");
 
-        String username =
-                request.get("username").toString();
-
-        int productId =
-                Integer.parseInt(
-                        request.get("productId").toString());
-
+        // Fetch the user using username
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
 
-        cartService.deleteCartItem(
-                user.getUserId(),
-                productId
-        );
-
-        return ResponseEntity.ok("Item deleted");
+        // Delete the cart item
+        cartService.deleteCartItem(user.getUserId(), productId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
-
 }
