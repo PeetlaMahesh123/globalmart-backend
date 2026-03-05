@@ -1,11 +1,12 @@
-# Use Java image
-FROM eclipse-temurin:21-jdk-jammy
-
-# Set working directory
+# Stage 1: Build the project
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
 
-# Copy jar file
-COPY target/*.jar app.jar
+# Stage 2: Run the application
+FROM eclipse-temurin:21-jdk-jammy
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
 
-# Run application
 ENTRYPOINT ["java","-jar","app.jar"]
