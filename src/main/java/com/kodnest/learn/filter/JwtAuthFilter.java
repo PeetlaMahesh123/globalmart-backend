@@ -33,16 +33,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getServletPath();
+
+        // Skip authentication for login and register APIs
+        if (path.equals("/api/users/login") || path.equals("/api/users/register")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String token = null;
 
+        // Read JWT token from cookies
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("authToken".equals(cookie.getName())) {
                     token = cookie.getValue();
+                    break;
                 }
             }
         }
 
+        // Validate token
         if (token != null && authService.validateToken(token)) {
 
             User user = authService.getUserFromToken(token);
@@ -55,12 +66,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     );
 
             authentication.setDetails(
-                    new WebAuthenticationDetailsSource()
-                            .buildDetails(request)
+                    new WebAuthenticationDetailsSource().buildDetails(request)
             );
 
-            SecurityContextHolder.getContext()
-                    .setAuthentication(authentication);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
             request.setAttribute("authenticatedUser", user);
         }
