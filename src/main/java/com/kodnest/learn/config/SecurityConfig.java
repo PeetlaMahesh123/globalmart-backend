@@ -1,40 +1,78 @@
-package com.kodnest.learn.config;
+package com.kodnest.learn.filter;
 
-import com.kodnest.learn.filter.JwtAuthFilter;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.kodnest.learn.entity.User;
+import com.kodnest.learn.service.AuthService;
 
-@Configuration
-public class SecurityConfig {
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
-    private final JwtAuthFilter jwtAuthFilter;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
-        this.jwtAuthFilter = jwtAuthFilter;
+import java.io.IOException;
+import java.util.Collections;
+
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private final AuthService authService;
+
+    public JwtAuthFilter(AuthService authService) {
+        this.authService = authService;
     }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
-        http
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> {})
-            .authorizeHttpRequests(auth -> auth
+        String path = request.getRequestURI();
 
-                    // ⭐ ADD THIS
-                    .requestMatchers("/api/users/login").permitAll()
+        // ⭐ Skip authentication for login and register
+        if (path.equals("/api/users/login") || path.equals("/api/users/register")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-                    .requestMatchers("/api/users/register").permitAll()
-                    .requestMatchers("/api/auth/**").permitAll()
+        String token = null;
 
-                    .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter,
-                    UsernamePasswordAuthenticationFilter.class);
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("authToken".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                }
+            }
+        }
 
-        return http.build();
+        if (token != null && authService.validateToken(token)) {
+
+            User user = authService.getUserFromToken(token);
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            user.getUsername(),
+                            null,
+                            Collections.emptyList()
+                    );
+
+            authentication.setDetails(
+                    new WebAuthenticationDetailsSource()
+                            .buildDetails(request)
+            );
+
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authentication);
+
+            request.setAttribute("authenticatedUser", user);
+        }
+
+        filterChain.doFilter(request, response);
     }
 }
