@@ -23,8 +23,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> {})
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/**").permitAll()
+
+                    // ⭐ ADD THIS
+                    .requestMatchers("/api/users/login").permitAll()
+
                     .requestMatchers("/api/users/register").permitAll()
+                    .requestMatchers("/api/auth/**").permitAll()
+
                     .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter,
