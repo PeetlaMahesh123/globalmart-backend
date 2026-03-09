@@ -50,7 +50,6 @@ public class CartController {
 
     // Add an item to the cart
     @PostMapping("/add")
-    @CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true")
     public ResponseEntity<Void> addToCart(@RequestBody Map<String, Object> request) {
         String username = (String) request.get("username");
         int productId = (int) request.get("productId");
