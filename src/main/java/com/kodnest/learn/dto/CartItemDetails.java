@@ -1,6 +1,5 @@
 package com.kodnest.learn.dto;
 
-
 import java.math.BigDecimal;
 
 // Class to hold detailed cart item information
