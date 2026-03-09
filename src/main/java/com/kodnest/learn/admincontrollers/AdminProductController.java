@@ -1,3 +1,4 @@
+// Admin Controller for Add Product functionality
 package com.kodnest.learn.admincontrollers;
 
 import com.kodnest.learn.entity.Product;
