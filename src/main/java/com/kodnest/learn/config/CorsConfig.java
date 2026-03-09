@@ -23,12 +23,7 @@ public class CorsConfig {
                 "https://zippy-parfait-f89cac.netlify.app"
         ));
 
-        config.setAllowedHeaders(List.of(
-                "Origin",
-                "Content-Type",
-                "Accept",
-                "Authorization"
-        ));
+        config.setAllowedHeaders(List.of("*"));
 
         config.setAllowedMethods(List.of(
                 "GET",
