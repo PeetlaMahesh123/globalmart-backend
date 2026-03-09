@@ -6,7 +6,7 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.kodnest.learn.entity.JWTToken;
@@ -27,16 +27,17 @@ public class AuthService {
     private final Key SIGNING_KEY;
     private final UserRepository userRepository;
     private final JWTTokenRepository jwtTokenRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public AuthService(UserRepository userRepository,
                        JWTTokenRepository jwtTokenRepository,
+                       PasswordEncoder passwordEncoder,
                        @Value("${jwt.secret}") String jwtSecret) {
 
         this.userRepository = userRepository;
         this.jwtTokenRepository = jwtTokenRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder;
 
         if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 64) {
             throw new IllegalArgumentException("JWT secret must be at least 64 bytes.");
