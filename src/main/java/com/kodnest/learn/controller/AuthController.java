@@ -46,11 +46,12 @@ public class AuthController {
 
             String token = authService.generateToken(user);
 
+            // Cookie (works in localhost + deployment)
             String cookie = "authToken=" + token +
                     "; Path=/" +
                     "; HttpOnly" +
-                    "; Secure" +
                     "; SameSite=None" +
+                    "; Secure" +
                     "; Max-Age=3600";
 
             response.addHeader(HttpHeaders.SET_COOKIE, cookie);
@@ -75,7 +76,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse response) {
 
-        String cookie = "authToken=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0";
+        String cookie = "authToken=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0";
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie);
 
