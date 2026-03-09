@@ -46,11 +46,11 @@ public class AuthController {
             String token = authService.generateToken(user);
 
             // Create auth cookie
-            String cookie = "authToken=" + token +
-                    "; Path=/" +
-                    "; HttpOnly" +
-                    "; SameSite=None" +
-                    "; Max-Age=3600";
+           String cookie = "authToken=" + token +
+        "; Path=/" +
+        "; HttpOnly" +
+        "; SameSite=Lax" +
+        "; Max-Age=3600";
 
             response.addHeader(HttpHeaders.SET_COOKIE, cookie);
 
