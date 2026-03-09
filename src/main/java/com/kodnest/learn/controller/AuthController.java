@@ -73,5 +73,22 @@ public class AuthController {
         response.addCookie(cookie);
 
         return ResponseEntity.ok(Map.of("message","Logout successful"));
+
+        @GetMapping("/me")
+public ResponseEntity<?> getCurrentUser(HttpServletRequest request){
+
+    User user = (User) request.getAttribute("authenticatedUser");
+
+    if(user == null){
+        return ResponseEntity.ok(Map.of("username","Guest"));
+    }
+
+    Map<String,Object> response = new HashMap<>();
+
+    response.put("username",user.getUsername());
+    response.put("role",user.getRole().name());
+
+    return ResponseEntity.ok(response);
+}
     }
 }
