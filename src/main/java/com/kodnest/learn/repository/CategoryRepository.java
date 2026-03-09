@@ -1,10 +1,9 @@
 package com.kodnest.learn.repository;
 
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.kodnest.learn.entity.Category;
+import com.example.demo.entity.Category;
 
 import java.util.Optional;
 
