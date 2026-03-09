@@ -4,8 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.example.demo.entity.User;
-import com.example.demo.repository.UserRepository;
+import com.kodnest.learn.entity.User;
+import com.kodnest.learn.repository.UserRepository;
 @Service
 public class UserService {
     private final UserRepository userRepository;
