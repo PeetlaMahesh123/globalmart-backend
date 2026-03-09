@@ -25,8 +25,8 @@ public class ProductController {
             @RequestParam(required = false) String category,
             HttpServletRequest request) {
 
-        // ✅ Get authenticated user from filter
-        User user = (User) request.getAttribute("authenticatedUser");
+        // FIXED HERE
+        User user = (User) request.getAttribute("user");
 
         if (user == null) {
             return ResponseEntity.status(401)
@@ -50,7 +50,6 @@ public class ProductController {
             productData.put("price", product.getPrice());
             productData.put("stock", product.getStock());
 
-            // ✅ IMPORTANT – Add images
             List<String> images = productService.getProductImages(product.getProductId());
             productData.put("images", images != null ? images : new ArrayList<>());
 
