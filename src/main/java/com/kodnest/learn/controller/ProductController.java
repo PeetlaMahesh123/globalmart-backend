@@ -26,46 +26,57 @@ public class ProductController {
     public ResponseEntity<Map<String, Object>> getProducts(
             @RequestParam(required = false) String category,
             HttpServletRequest request) {
+
         try {
-            // Retrieve authenticated user from the request attribute set by the filter
+
             User authenticatedUser = (User) request.getAttribute("authenticatedUser");
+
             if (authenticatedUser == null) {
-                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized access"));
+                authenticatedUser = new User();
+                authenticatedUser.setUsername("Guest");
             }
 
-            // Fetch products based on the category filter
             List<Product> products = productService.getProductsByCategory(category);
 
-            // Build the response
             Map<String, Object> response = new HashMap<>();
-            
-            // Add user info
+
             Map<String, String> userInfo = new HashMap<>();
             userInfo.put("name", authenticatedUser.getUsername());
-            userInfo.put("role", authenticatedUser.getRole().name());
+
+            if (authenticatedUser.getRole() != null) {
+                userInfo.put("role", authenticatedUser.getRole().name());
+            } else {
+                userInfo.put("role", "CUSTOMER");
+            }
+
             response.put("user", userInfo);
 
-            // Add product details
             List<Map<String, Object>> productList = new ArrayList<>();
+
             for (Product product : products) {
+
                 Map<String, Object> productDetails = new HashMap<>();
+
                 productDetails.put("product_id", product.getProductId());
                 productDetails.put("name", product.getName());
                 productDetails.put("description", product.getDescription());
                 productDetails.put("price", product.getPrice());
                 productDetails.put("stock", product.getStock());
 
-                // Fetch product images
                 List<String> images = productService.getProductImages(product.getProductId());
+
                 productDetails.put("images", images);
 
                 productList.add(productDetails);
             }
+
             response.put("products", productList);
 
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+
+        } catch (Exception e) {
+
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 }
