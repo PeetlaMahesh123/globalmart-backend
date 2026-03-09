@@ -50,7 +50,6 @@ public class AuthController {
                     "; Path=/" +
                     "; HttpOnly" +
                     "; SameSite=None" +
-                    "; Secure" +
                     "; Max-Age=3600";
 
             response.addHeader(HttpHeaders.SET_COOKIE, cookie);
