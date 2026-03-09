@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.repository.query.Param;
 
-import com.example.demo.entity.CartItem;
+import com.kodnest.learn.entity.CartItem;
 
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Integer> {
