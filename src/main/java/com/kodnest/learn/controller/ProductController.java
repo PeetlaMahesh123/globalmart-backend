@@ -14,7 +14,10 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://zippy-parfait-f89cac.netlify.app"
+}, allowCredentials = "true")
 public class ProductController {
 
     @Autowired
@@ -25,7 +28,7 @@ public class ProductController {
             @RequestParam(required = false) String category,
             HttpServletRequest request) {
 
-        // FIXED HERE
+        // FIXED ATTRIBUTE NAME
         User user = (User) request.getAttribute("user");
 
         if (user == null) {
@@ -36,6 +39,7 @@ public class ProductController {
         List<Product> products = productService.getProductsByCategory(category);
 
         Map<String, Object> response = new HashMap<>();
+
         response.put("username", user.getUsername());
 
         List<Map<String, Object>> productList = new ArrayList<>();
@@ -50,8 +54,10 @@ public class ProductController {
             productData.put("price", product.getPrice());
             productData.put("stock", product.getStock());
 
-            List<String> images = productService.getProductImages(product.getProductId());
-            productData.put("images", images != null ? images : new ArrayList<>());
+            List<String> images =
+                    productService.getProductImages(product.getProductId());
+
+            productData.put("images", images);
 
             productList.add(productData);
         }
