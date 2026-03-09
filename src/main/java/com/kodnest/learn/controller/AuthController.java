@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.dto.LoginRequest;
-import com.example.demo.entity.User;
-import com.example.demo.service.AuthService;
+import com.kodnest.learn.dto.LoginRequest;
+import com.kodnest.learn.entity.User;
+import com.kodnest.learn.service.AuthService;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
