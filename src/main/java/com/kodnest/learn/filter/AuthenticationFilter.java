@@ -1,160 +1,69 @@
-package com.kodnest.learn.filter;
+package com.kodnest.learn.config;
 
-import com.kodnest.learn.entity.Role;
-import com.kodnest.learn.entity.User;
-import com.kodnest.learn.repository.UserRepository;
-import com.kodnest.learn.service.AuthService;
+import java.io.IOException;
+import java.util.Arrays;
 
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Optional;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.kodnest.learn.entity.User;
+import com.kodnest.learn.service.AuthService;
 
 @Component
-@WebFilter(urlPatterns = {"/api/*", "/admin/*"})
-public class AuthenticationFilter implements Filter {
+public class AuthenticationFilter extends OncePerRequestFilter {
 
-    private static final Logger logger =
-            LoggerFactory.getLogger(AuthenticationFilter.class);
-
-    private final AuthService authService;
-    private final UserRepository userRepository;
-
-    // APIs that do NOT need authentication
     private static final String[] UNAUTHENTICATED_PATHS = {
             "/api/users/register",
-            "/api/users/login"
+            "/api/users/login",
+            "/api/auth/login",
+            "/api/auth/logout"
     };
 
-    public AuthenticationFilter(AuthService authService,
-                                UserRepository userRepository) {
-
-        this.authService = authService;
-        this.userRepository = userRepository;
-    }
+    @Autowired
+    private AuthService authService;
 
     @Override
-    public void doFilter(ServletRequest request,
-                         ServletResponse response,
-                         FilterChain chain)
-            throws IOException, ServletException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
-        HttpServletRequest httpRequest =
-                (HttpServletRequest) request;
+        String path = request.getRequestURI();
 
-        HttpServletResponse httpResponse =
-                (HttpServletResponse) response;
+        boolean isPublic = Arrays.stream(UNAUTHENTICATED_PATHS)
+                .anyMatch(path::startsWith);
 
-        String requestURI = httpRequest.getRequestURI();
-
-        logger.info("Request URI: {}", requestURI);
-
-        // Allow login & register
-        if (Arrays.asList(UNAUTHENTICATED_PATHS)
-                .contains(requestURI)) {
-
-            chain.doFilter(request, response);
+        if (isPublic) {
+            filterChain.doFilter(request, response);
             return;
         }
 
-        // Allow OPTIONS requests (CORS preflight)
-        if (httpRequest.getMethod()
-                .equalsIgnoreCase("OPTIONS")) {
+        String token = null;
 
-            chain.doFilter(request, response);
-            return;
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("authToken".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                }
+            }
         }
-
-        // Get token from cookies
-        String token = getAuthTokenFromCookies(httpRequest);
 
         if (token == null || !authService.validateToken(token)) {
-
-            httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            httpResponse.getWriter()
-                    .write("Unauthorized: Invalid or missing token");
-
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Unauthorized");
             return;
         }
 
-        // Extract username
-        String username = authService.extractUsername(token);
+        User user = authService.getUserFromToken(token);
+        request.setAttribute("user", user);
 
-        Optional<User> userOptional =
-                userRepository.findByUsername(username);
-
-        if (userOptional.isEmpty()) {
-
-            httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            httpResponse.getWriter()
-                    .write("Unauthorized: User not found");
-
-            return;
-        }
-
-        User authenticatedUser = userOptional.get();
-        Role role = authenticatedUser.getRole();
-
-        logger.info("Authenticated User: {} Role: {}",
-                authenticatedUser.getUsername(), role);
-
-        // Admin access control
-        if (requestURI.startsWith("/admin/")
-                && role != Role.ADMIN) {
-
-            httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            httpResponse.getWriter()
-                    .write("Forbidden: Admin access required");
-
-            return;
-        }
-
-        // Customer access control
-        if (requestURI.startsWith("/api/")
-                && role != Role.CUSTOMER) {
-
-            httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            httpResponse.getWriter()
-                    .write("Forbidden: Customer access required");
-
-            return;
-        }
-
-        // Attach authenticated user to request
-        httpRequest.setAttribute("authenticatedUser",
-                authenticatedUser);
-
-        chain.doFilter(request, response);
-    }
-
-    private String getAuthTokenFromCookies(
-            HttpServletRequest request) {
-
-        Cookie[] cookies = request.getCookies();
-
-        if (cookies != null) {
-
-            return Arrays.stream(cookies)
-                    .filter(cookie ->
-                            "authToken".equals(cookie.getName()))
-                    .map(Cookie::getValue)
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        return null;
+        filterChain.doFilter(request, response);
     }
 }
