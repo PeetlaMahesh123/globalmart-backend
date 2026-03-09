@@ -1,83 +1,69 @@
-package com.kodnest.learn.controller;
+package com.kodnest.learn.config;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.util.Arrays;
 
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
-import com.kodnest.learn.dto.LoginRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import com.kodnest.learn.entity.User;
 import com.kodnest.learn.service.AuthService;
 
-import jakarta.servlet.http.HttpServletResponse;
+@Component
+public class AuthenticationFilter extends OncePerRequestFilter {
 
-@RestController
-@CrossOrigin(
-        origins = {
-                "http://localhost:5173",
-                "https://zippy-parfait-f89cac.netlify.app"
-        },
-        allowCredentials = "true"
-)
-@RequestMapping("/api/auth")
-public class AuthController {
+    private static final String[] UNAUTHENTICATED_PATHS = {
+            "/api/users/register",
+            "/api/users/login",
+            "/api/auth/login",
+            "/api/auth/logout"
+    };
 
-    private final AuthService authService;
+    @Autowired
+    private AuthService authService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
-                                   HttpServletResponse response) {
+        String path = request.getRequestURI();
 
-        try {
+        boolean isPublic = Arrays.stream(UNAUTHENTICATED_PATHS)
+                .anyMatch(path::startsWith);
 
-            User user = authService.authenticate(
-                    loginRequest.getUsername(),
-                    loginRequest.getPassword()
-            );
-
-            String token = authService.generateToken(user);
-
-            String cookie = "authToken=" + token +
-                    "; Path=/" +
-                    "; HttpOnly" +
-                    "; SameSite=None" +
-                    "; Secure" +
-                    "; Max-Age=3600";
-
-            response.addHeader(HttpHeaders.SET_COOKIE, cookie);
-
-            Map<String, Object> body = new HashMap<>();
-            body.put("message", "Login successful");
-            body.put("username", user.getUsername());
-            body.put("role", user.getRole().name());
-
-            return ResponseEntity.ok(body);
-
-        } catch (RuntimeException e) {
-
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Invalid username or password");
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(error);
+        if (isPublic) {
+            filterChain.doFilter(request, response);
+            return;
         }
-    }
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
+        String token = null;
 
-        String cookie = "authToken=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0";
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("authToken".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                }
+            }
+        }
 
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie);
+        if (token == null || !authService.validateToken(token)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Unauthorized");
+            return;
+        }
 
-        return ResponseEntity.ok(Map.of("message", "Logout successful"));
+        User user = authService.getUserFromToken(token);
+        request.setAttribute("user", user);
+
+        filterChain.doFilter(request, response);
     }
 }
