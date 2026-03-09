@@ -1,9 +1,9 @@
-package com.example.demo.filter;
+package com.kodnest.learn.filter;
 
-import com.example.demo.entity.Role;
-import com.example.demo.entity.User;
-import com.example.demo.repository.UserRepository;
-import com.example.demo.service.AuthService;
+import com.kodnest.learn.entity.Role;
+import com.kodnest.learn.entity.User;
+import com.kodnest.learn.repository.UserRepository;
+import com.kodnest.learn.service.AuthService;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
