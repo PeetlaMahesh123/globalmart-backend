@@ -33,7 +33,8 @@ public class AuthenticationFilter implements Filter {
 
     private static final String[] UNAUTHENTICATED_PATHS = {
         "/api/users/register",
-        "/api/auth/login"
+        "/api/auth/login",
+         "/api/products"
     };
 
     public AuthenticationFilter(AuthService authService, UserRepository userRepository) {
