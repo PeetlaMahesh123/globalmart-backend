@@ -21,7 +21,6 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     private static final String[] UNAUTHENTICATED_PATHS = {
             "/api/users/register",
-            "/api/users/login",
             "/api/auth/login",
             "/api/auth/logout"
     };
@@ -62,6 +61,8 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         }
 
         User user = authService.getUserFromToken(token);
+
+        // attach user to request
         request.setAttribute("user", user);
 
         filterChain.doFilter(request, response);
