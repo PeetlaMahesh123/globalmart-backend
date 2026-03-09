@@ -31,8 +31,6 @@ public class AuthController {
         this.authService = authService;
     }
 
-    // ================= LOGIN =================
-
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
                                    HttpServletResponse response) {
@@ -46,7 +44,6 @@ public class AuthController {
 
             String token = authService.generateToken(user);
 
-            // Cookie (works in localhost + deployment)
             String cookie = "authToken=" + token +
                     "; Path=/" +
                     "; HttpOnly" +
@@ -65,13 +62,14 @@ public class AuthController {
 
         } catch (RuntimeException e) {
 
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Invalid username or password");
+
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", e.getMessage()));
+                    .body(error);
         }
     }
-
-    // ================= LOGOUT =================
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse response) {
