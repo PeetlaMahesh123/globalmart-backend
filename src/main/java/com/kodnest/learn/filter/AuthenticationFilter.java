@@ -26,114 +26,155 @@ import org.slf4j.LoggerFactory;
 public class AuthenticationFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class);
+
     private final AuthService authService;
     private final UserRepository userRepository;
 
-    private static final String ALLOWED_ORIGIN = "http://localhost:5173";
+    // Allow both localhost and netlify
+    private static final String[] ALLOWED_ORIGINS = {
+            "http://localhost:5173",
+            "https://zippy-parfait-f89cac.netlify.app"
+    };
 
-    private static final String[] UNAUTHENTICATED_PATHS = {
-        "/api/users/register",
-        "/api/auth/login",
-         "/api/products"
+    // Public APIs
+    private static final String[] PUBLIC_PATHS = {
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/me",
+            "/api/auth/logout",
+            "/api/products"
     };
 
     public AuthenticationFilter(AuthService authService, UserRepository userRepository) {
-    	System.out.println("Filter Started.");
         this.authService = authService;
         this.userRepository = userRepository;
+        System.out.println("Authentication Filter Started");
     }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        try {
-            executeFilterLogic(request, response, chain);
-        } catch (Exception e) {
-            logger.error("Unexpected error in AuthenticationFilter", e);
-            sendErrorResponse((HttpServletResponse) response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Internal server error");
-        }
-    }
 
-    private void executeFilterLogic(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String requestURI = httpRequest.getRequestURI();
+        String origin = httpRequest.getHeader("Origin");
+
+        setCORSHeaders(httpResponse, origin);
+
         logger.info("Request URI: {}", requestURI);
 
-        // Allow unauthenticated paths
-        if (Arrays.asList(UNAUTHENTICATED_PATHS).contains(requestURI)) {
+        // Allow OPTIONS requests
+        if (httpRequest.getMethod().equalsIgnoreCase("OPTIONS")) {
+            httpResponse.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
+        // Allow public paths
+        if (isPublicPath(requestURI)) {
             chain.doFilter(request, response);
             return;
         }
 
-        // Handle preflight (OPTIONS) requests
-        if (httpRequest.getMethod().equalsIgnoreCase("OPTIONS")) {
-            setCORSHeaders(httpResponse);
-            return;
+        try {
+
+            String token = getAuthTokenFromCookies(httpRequest);
+
+            if (token == null || !authService.validateToken(token)) {
+                sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                return;
+            }
+
+            String username = authService.extractUsername(token);
+
+            Optional<User> userOptional = userRepository.findByUsername(username);
+
+            if (userOptional.isEmpty()) {
+                sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "User not found");
+                return;
+            }
+
+            User authenticatedUser = userOptional.get();
+            Role role = authenticatedUser.getRole();
+
+            logger.info("Authenticated user: {} Role: {}", username, role);
+
+            // Role validation
+            if (requestURI.startsWith("/admin") && role != Role.ADMIN) {
+                sendErrorResponse(httpResponse, HttpServletResponse.SC_FORBIDDEN, "Admin access required");
+                return;
+            }
+
+            // Attach user to request
+            httpRequest.setAttribute("authenticatedUser", authenticatedUser);
+
+            chain.doFilter(request, response);
+
+        } catch (Exception e) {
+
+            logger.error("Authentication error", e);
+
+            sendErrorResponse(httpResponse,
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Internal Server Error");
+
         }
-
-        // Extract and validate the token
-        String token = getAuthTokenFromCookies(httpRequest);
-        System.out.println(token);
-        if (token == null || !authService.validateToken(token)) {
-            sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: Invalid or missing token");
-            return;
-        }
-
-        // Extract username and verify user
-        String username = authService.extractUsername(token);
-        Optional<User> userOptional = userRepository.findByUsername(username);
-        if (userOptional.isEmpty()) {
-            sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: User not found");
-            return;
-        }
-
-        // Get authenticated user and role
-        User authenticatedUser = userOptional.get();
-        Role role = authenticatedUser.getRole();
-        logger.info("Authenticated User: {}, Role: {}", authenticatedUser.getUsername(), role);
-
-        // Role-based access control
-        if (requestURI.startsWith("/admin/") && role != Role.ADMIN) {
-            sendErrorResponse(httpResponse, HttpServletResponse.SC_FORBIDDEN, "Forbidden: Admin access required");
-            return;
-        }
-
-        if (requestURI.startsWith("/api/") && role != Role.CUSTOMER) {
-            sendErrorResponse(httpResponse, HttpServletResponse.SC_FORBIDDEN, "Forbidden: Customer access required");
-            return;
-        }
-
-        // Attach user details to request
-        httpRequest.setAttribute("authenticatedUser", authenticatedUser);
-        chain.doFilter(request, response);
     }
 
-    private void setCORSHeaders(HttpServletResponse response) {
-        response.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+    // Check public URLs
+    private boolean isPublicPath(String uri) {
+
+        for (String path : PUBLIC_PATHS) {
+
+            if (uri.startsWith(path)) {
+                return true;
+            }
+
+        }
+
+        return false;
+    }
+
+    // Set CORS headers
+    private void setCORSHeaders(HttpServletResponse response, String origin) {
+
+        if (origin != null && Arrays.asList(ALLOWED_ORIGINS).contains(origin)) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+        }
+
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
         response.setHeader("Access-Control-Allow-Credentials", "true");
-        response.setStatus(HttpServletResponse.SC_OK);
     }
 
-    private void sendErrorResponse(HttpServletResponse response, int statusCode, String message) throws IOException {
-        response.setStatus(statusCode);
-        response.getWriter().write(message);
-    }
-
+    // Extract JWT token
     private String getAuthTokenFromCookies(HttpServletRequest request) {
+
         Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            return Arrays.stream(cookies)
-                    .filter(cookie -> "authToken".equals(cookie.getName()))
-                    .map(Cookie::getValue)
-                    .findFirst()
-                    .orElse(null);
+
+        if (cookies == null) {
+            return null;
         }
+
+        for (Cookie cookie : cookies) {
+
+            if ("authToken".equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+
+        }
+
         return null;
+    }
+
+    // Send error response
+    private void sendErrorResponse(HttpServletResponse response, int status, String message)
+            throws IOException {
+
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"error\":\"" + message + "\"}");
+
     }
 }
