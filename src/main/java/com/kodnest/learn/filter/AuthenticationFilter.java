@@ -19,10 +19,10 @@ import com.kodnest.learn.service.AuthService;
 @Component
 public class AuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String[] UNAUTHENTICATED_PATHS = {
-            "/api/users/register",
+    private static final String[] PUBLIC_PATHS = {
             "/api/auth/login",
-            "/api/auth/logout"
+            "/api/auth/logout",
+            "/api/users/register"
     };
 
     @Autowired
@@ -36,7 +36,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        boolean isPublic = Arrays.stream(UNAUTHENTICATED_PATHS)
+        boolean isPublic = Arrays.stream(PUBLIC_PATHS)
                 .anyMatch(path::startsWith);
 
         if (isPublic) {
@@ -47,22 +47,27 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         String token = null;
 
         if (request.getCookies() != null) {
+
             for (Cookie cookie : request.getCookies()) {
+
                 if ("authToken".equals(cookie.getName())) {
                     token = cookie.getValue();
                 }
+
             }
         }
 
         if (token == null || !authService.validateToken(token)) {
+
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Unauthorized");
+
             return;
         }
 
         User user = authService.getUserFromToken(token);
 
-        // attach user to request
+        // THIS MUST MATCH PRODUCT CONTROLLER
         request.setAttribute("user", user);
 
         filterChain.doFilter(request, response);
