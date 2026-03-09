@@ -10,60 +10,63 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true")
 @RequestMapping("/api/products")
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "https://zippy-parfait-f89cac.netlify.app"
-}, allowCredentials = "true")
 public class ProductController {
 
     @Autowired
     private ProductService productService;
 
     @GetMapping
-    public ResponseEntity<?> getProducts(
+    public ResponseEntity<Map<String, Object>> getProducts(
             @RequestParam(required = false) String category,
             HttpServletRequest request) {
+        try {
+            // Retrieve authenticated user from the request attribute set by the filter
+            User authenticatedUser = (User) request.getAttribute("authenticatedUser");
+            if (authenticatedUser == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized access"));
+            }
 
-        // FIXED ATTRIBUTE NAME
-        User user = (User) request.getAttribute("user");
+            // Fetch products based on the category filter
+            List<Product> products = productService.getProductsByCategory(category);
 
-        if (user == null) {
-            return ResponseEntity.status(401)
-                    .body(Map.of("error", "Unauthorized"));
+            // Build the response
+            Map<String, Object> response = new HashMap<>();
+            
+            // Add user info
+            Map<String, String> userInfo = new HashMap<>();
+            userInfo.put("name", authenticatedUser.getUsername());
+            userInfo.put("role", authenticatedUser.getRole().name());
+            response.put("user", userInfo);
+
+            // Add product details
+            List<Map<String, Object>> productList = new ArrayList<>();
+            for (Product product : products) {
+                Map<String, Object> productDetails = new HashMap<>();
+                productDetails.put("product_id", product.getProductId());
+                productDetails.put("name", product.getName());
+                productDetails.put("description", product.getDescription());
+                productDetails.put("price", product.getPrice());
+                productDetails.put("stock", product.getStock());
+
+                // Fetch product images
+                List<String> images = productService.getProductImages(product.getProductId());
+                productDetails.put("images", images);
+
+                productList.add(productDetails);
+            }
+            response.put("products", productList);
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
-
-        List<Product> products = productService.getProductsByCategory(category);
-
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("username", user.getUsername());
-
-        List<Map<String, Object>> productList = new ArrayList<>();
-
-        for (Product product : products) {
-
-            Map<String, Object> productData = new HashMap<>();
-
-            productData.put("product_id", product.getProductId());
-            productData.put("name", product.getName());
-            productData.put("description", product.getDescription());
-            productData.put("price", product.getPrice());
-            productData.put("stock", product.getStock());
-
-            List<String> images =
-                    productService.getProductImages(product.getProductId());
-
-            productData.put("images", images);
-
-            productList.add(productData);
-        }
-
-        response.put("products", productList);
-
-        return ResponseEntity.ok(response);
     }
 }
