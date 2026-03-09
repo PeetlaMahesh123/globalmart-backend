@@ -1,32 +1,39 @@
 package com.kodnest.learn.service;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.kodnest.learn.entity.User;
 import com.kodnest.learn.repository.UserRepository;
+
 @Service
 public class UserService {
+
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+
     @Autowired
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder) {
+
         this.userRepository = userRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder;
     }
+
     public User registerUser(User user) {
-        // Check if username or email already exists
+
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new RuntimeException("Username is already taken");
+            throw new RuntimeException("Username already exists");
         }
+
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new RuntimeException("Email is already registered");
+            throw new RuntimeException("Email already registered");
         }
-        // Encode password before saving
+
+        // BCrypt encryption
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // Save the user
+
         return userRepository.save(user);
     }
 }
