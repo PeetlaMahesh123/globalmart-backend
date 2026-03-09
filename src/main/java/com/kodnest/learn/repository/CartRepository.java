@@ -1,6 +1,5 @@
 package com.kodnest.learn.repository;
 
-
 import com.kodnest.learn.entity.CartItem;
 
 import jakarta.transaction.Transactional;
