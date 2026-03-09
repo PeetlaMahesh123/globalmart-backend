@@ -1,5 +1,5 @@
+// Admin Service for Modify User functionality
 package com.kodnest.learn.adminservices;
-
 import com.kodnest.learn.entity.User;
 import com.kodnest.learn.entity.Role;
 import com.kodnest.learn.repository.JWTTokenRepository;
@@ -49,9 +49,9 @@ public class AdminUserService {
 
 	        // Save updated user
 	        return userRepository.save(existingUser);
- }
+    }
 
- public User getUserById(Integer userId) {
-     return userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
- }
+    public User getUserById(Integer userId) {
+        return userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
 }
