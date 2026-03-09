@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.entity.JWTToken;
+import com.kodnest.learn.entity.JWTToken;
 
 @Repository
 public interface JWTTokenRepository extends JpaRepository<JWTToken, Integer> {
