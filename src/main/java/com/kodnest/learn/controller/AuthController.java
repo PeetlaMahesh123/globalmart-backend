@@ -21,66 +21,57 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/api/auth")
-
 public class AuthController {
+
     private final AuthService authService;
+
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
-    
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest, HttpServletResponse response) {
-        try {
-            User user = authService.authenticate(loginRequest.getUsername(), loginRequest.getPassword());
-            String token = authService.generateToken(user);
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
+                                   HttpServletResponse response) {
 
-            Cookie cookie = new Cookie("authToken", token);
-            cookie.setHttpOnly(true);
-            cookie.setSecure(false); // Set to true if using HTTPS
-            cookie.setPath("/");
-            cookie.setMaxAge(3600); // 1 hour
-            cookie.setDomain("localhost");
-            response.addCookie(cookie);
-           // Optional but useful
-            
-            response.addHeader("Set-Cookie",
-                    String.format("authToken=%s; HttpOnly; Path=/; Max-Age=3600; SameSite=None", token));
+        User user = authService.authenticate(
+                loginRequest.getUsername(),
+                loginRequest.getPassword()
+        );
 
-            
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("message", "Login successful");
-            responseBody.put("role", user.getRole().name());
-            responseBody.put("username", user.getUsername());
+        String token = authService.generateToken(user);
 
-            return ResponseEntity.ok(responseBody);
-            
-        } 
-        catch (RuntimeException e) 
-        {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
-        }
+        Cookie cookie = new Cookie("authToken", token);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(false);
+        cookie.setPath("/");
+        cookie.setMaxAge(3600);
+
+        response.addCookie(cookie);
+
+        Map<String,Object> body = new HashMap<>();
+        body.put("username", user.getUsername());
+        body.put("role", user.getRole().name());
+        body.put("message","Login successful");
+
+        return ResponseEntity.ok(body);
     }
 
-    
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request,HttpServletResponse response) {
-        try {
-        	User user=(User) request.getAttribute("authenticatedUser");
+    public ResponseEntity<?> logout(HttpServletRequest request,
+                                    HttpServletResponse response) {
+
+        User user = (User) request.getAttribute("authenticatedUser");
+
+        if(user != null){
             authService.logout(user);
-            Cookie cookie = new Cookie("authToken", null);
-            cookie.setHttpOnly(true);
-            cookie.setMaxAge(0);
-            cookie.setPath("/");
-            response.addCookie(cookie);
-            Map<String, String> responseBody = new HashMap<>();
-            responseBody.put("message", "Logout successful");
-            return ResponseEntity.ok(responseBody);
-        } catch (RuntimeException e) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "Logout failed");
-            return ResponseEntity.status(500).body(errorResponse);
         }
+
+        Cookie cookie = new Cookie("authToken", null);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok(Map.of("message","Logout successful"));
     }
-    
 }
