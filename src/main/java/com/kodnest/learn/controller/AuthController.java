@@ -47,22 +47,20 @@ public class AuthController {
 
             Cookie cookie = new Cookie("authToken", token);
             cookie.setHttpOnly(true);
-            cookie.setSecure(true); // IMPORTANT FOR HTTPS
+            cookie.setSecure(false);   // IMPORTANT for localhost
             cookie.setPath("/");
             cookie.setMaxAge(3600);
 
             response.addCookie(cookie);
 
             Map<String,Object> responseBody = new HashMap<>();
-
             responseBody.put("message","Login successful");
             responseBody.put("username",user.getUsername());
             responseBody.put("role",user.getRole().name());
 
             return ResponseEntity.ok(responseBody);
 
-        }
-        catch(RuntimeException e){
+        } catch(RuntimeException e){
 
             return ResponseEntity
                     .status(401)
@@ -78,15 +76,10 @@ public class AuthController {
         User user = (User) request.getAttribute("authenticatedUser");
 
         if(user == null){
-
-            return ResponseEntity.ok(
-                    Map.of("username","Guest")
-            );
-
+            return ResponseEntity.ok(Map.of("username","Guest"));
         }
 
         Map<String,Object> response = new HashMap<>();
-
         response.put("username",user.getUsername());
         response.put("role",user.getRole().name());
 
@@ -99,7 +92,7 @@ public class AuthController {
 
         Cookie cookie = new Cookie("authToken", null);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(false);
         cookie.setPath("/");
         cookie.setMaxAge(0);
 
