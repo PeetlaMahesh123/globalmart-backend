@@ -14,6 +14,7 @@ import com.kodnest.learn.entity.User;
 import com.kodnest.learn.service.UserService;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:5174")
 @RequestMapping("/api/users")
 public class UserController {
 
