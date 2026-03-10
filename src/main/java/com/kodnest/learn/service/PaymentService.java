@@ -41,13 +41,9 @@ public class PaymentService {
         this.cartRepository = cartRepository;
     }
 
-    /**
-     * Create Razorpay Order
-     */
     @Transactional
     public String createOrder(int userId,
-                              BigDecimal totalAmount,
-                              List<OrderItem> cartItems) throws RazorpayException {
+                              BigDecimal totalAmount) throws RazorpayException {
 
         RazorpayClient razorpayClient =
                 new RazorpayClient(razorpayKeyId, razorpayKeySecret);
@@ -62,14 +58,12 @@ public class PaymentService {
         orderRequest.put("receipt",
                 "txn_" + System.currentTimeMillis());
 
-        // Create Razorpay Order
         com.razorpay.Order razorpayOrder =
                 razorpayClient.orders.create(orderRequest);
 
-        // Save order in database
         Order order = new Order();
 
-        order.setOrderId(razorpayOrder.get("id")); // Razorpay order ID
+        order.setOrderId(razorpayOrder.get("id"));
         order.setUserId(userId);
         order.setTotalAmount(totalAmount);
         order.setStatus(OrderStatus.PENDING);
@@ -80,10 +74,6 @@ public class PaymentService {
         return razorpayOrder.get("id");
     }
 
-
-    /**
-     * Verify Razorpay Payment
-     */
     @Transactional
     public boolean verifyPayment(String razorpayOrderId,
                                  String razorpayPaymentId,
@@ -98,33 +88,25 @@ public class PaymentService {
             attributes.put("razorpay_payment_id", razorpayPaymentId);
             attributes.put("razorpay_signature", razorpaySignature);
 
-            // Verify signature
-            boolean isSignatureValid =
+            boolean isValid =
                     com.razorpay.Utils.verifyPaymentSignature(
                             attributes,
                             razorpayKeySecret
                     );
 
-            if (!isSignatureValid) {
-                return false;
-            }
+            if (!isValid) return false;
 
-            // Fetch order
             Order order = orderRepository.findById(razorpayOrderId)
-                    .orElseThrow(() ->
-                            new RuntimeException("Order not found"));
+                    .orElseThrow(() -> new RuntimeException("Order not found"));
 
-            // Update order status
             order.setStatus(OrderStatus.SUCCESS);
             order.setUpdatedAt(LocalDateTime.now());
 
             orderRepository.save(order);
 
-            // Fetch cart items
             List<CartItem> cartItems =
                     cartRepository.findCartItemsWithProductDetails(userId);
 
-            // Save order items
             for (CartItem cartItem : cartItems) {
 
                 OrderItem orderItem = new OrderItem();
@@ -134,8 +116,7 @@ public class PaymentService {
                 orderItem.setProductId(
                         cartItem.getProduct().getProductId());
 
-                orderItem.setQuantity(
-                        cartItem.getQuantity());
+                orderItem.setQuantity(cartItem.getQuantity());
 
                 orderItem.setPricePerUnit(
                         cartItem.getProduct().getPrice());
@@ -152,7 +133,6 @@ public class PaymentService {
                 orderItemRepository.save(orderItem);
             }
 
-            // Clear cart AFTER successful payment
             cartRepository.deleteAllCartItemsByUserId(userId);
 
             return true;
@@ -160,28 +140,7 @@ public class PaymentService {
         } catch (Exception e) {
 
             e.printStackTrace();
-
             return false;
-        }
-    }
-
-
-    /**
-     * Save Order Items manually (optional utility)
-     */
-    @Transactional
-    public void saveOrderItems(String orderId,
-                               List<OrderItem> items) {
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new RuntimeException("Order not found"));
-
-        for (OrderItem item : items) {
-
-            item.setOrder(order);
-
-            orderItemRepository.save(item);
         }
     }
 }
