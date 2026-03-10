@@ -14,7 +14,13 @@ import com.kodnest.learn.entity.User;
 import com.kodnest.learn.service.UserService;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5174")
+@CrossOrigin(
+    origins = {
+        "http://localhost:5173",
+        "https://zippy-parfait-f89cac.netlify.app"
+    },
+    allowCredentials = "true"
+)
 @RequestMapping("/api/users")
 public class UserController {
 
