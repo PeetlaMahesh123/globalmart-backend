@@ -10,6 +10,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
+    @CrossOrigin(
+    origins = {
+        "http://localhost:5173",
+        "https://zippy-parfait-f89cac.netlify.app"
+    },
+    allowCredentials = "true"
+)
 @RequestMapping("/admin/user")
 public class AdminUserController {
     private final AdminUserService adminUserService;
