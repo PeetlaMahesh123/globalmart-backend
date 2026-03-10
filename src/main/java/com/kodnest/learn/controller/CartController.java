@@ -12,7 +12,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(
+    origins = {
+        "http://localhost:5173",
+        "https://zippy-parfait-f89cac.netlify.app"
+    },
+    allowCredentials = "true"
+)
 @RequestMapping("/api/cart")
 public class CartController {
 
