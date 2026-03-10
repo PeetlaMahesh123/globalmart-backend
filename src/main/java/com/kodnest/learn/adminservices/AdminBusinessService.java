@@ -1,6 +1,6 @@
 package com.kodnest.learn.adminservices;
 
-import com.kodnest.learno.entity.Order;
+import com.kodnest.learn.entity.Order;
 import com.kodnest.learn.entity.OrderItem;
 import com.kodnest.learn.entity.OrderStatus;
 import com.kodnest.learn.repository.OrderRepository;
