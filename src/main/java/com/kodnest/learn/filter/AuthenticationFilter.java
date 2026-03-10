@@ -17,96 +17,117 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Optional;
 
-@Component
-public class AuthenticationFilter extends OncePerRequestFilter {
+@WebFilter(urlPatterns = {"/api/*","/admin/*"})
+public class AuthenticationFilter implements Filter {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class);
     private final AuthService authService;
     private final UserRepository userRepository;
 
+    private static final String ALLOWED_ORIGIN = "http://localhost:5174";
+
+    private static final String[] UNAUTHENTICATED_PATHS = {
+        "/api/users/register",
+        "/api/auth/login"
+    };
+
     public AuthenticationFilter(AuthService authService, UserRepository userRepository) {
+    	System.out.println("Filter Started.");
         this.authService = authService;
         this.userRepository = userRepository;
     }
 
-    private static final String[] PUBLIC_PATHS = {
-            "/api/auth/login",
-            "/api/auth/register",
-            "/api/auth/logout",
-            "/api/products"
-    };
-
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain chain) throws ServletException, IOException {
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        try {
+            executeFilterLogic(request, response, chain);
+        } catch (Exception e) {
+            logger.error("Unexpected error in AuthenticationFilter", e);
+            sendErrorResponse((HttpServletResponse) response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Internal server error");
+        }
+    }
 
-        String uri = request.getRequestURI();
+    private void executeFilterLogic(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        if (isPublic(uri)) {
+        String requestURI = httpRequest.getRequestURI();
+        logger.info("Request URI: {}", requestURI);
+
+        // Allow unauthenticated paths
+        if (Arrays.asList(UNAUTHENTICATED_PATHS).contains(requestURI)) {
             chain.doFilter(request, response);
             return;
         }
 
-        try {
-
-            String token = getTokenFromCookies(request);
-
-            if (token == null || !authService.validateToken(token)) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
-            }
-
-            String username = authService.extractUsername(token);
-
-            Optional<User> userOpt = userRepository.findByUsername(username);
-
-            if (userOpt.isEmpty()) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
-            }
-
-            User user = userOpt.get();
-
-            request.setAttribute("authenticatedUser", user);
-
-            chain.doFilter(request, response);
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-
+        // Handle preflight (OPTIONS) requests
+        if (httpRequest.getMethod().equalsIgnoreCase("OPTIONS")) {
+            setCORSHeaders(httpResponse);
+            return;
         }
+
+        // Extract and validate the token
+        String token = getAuthTokenFromCookies(httpRequest);
+        System.out.println(token);
+        if (token == null || !authService.validateToken(token)) {
+            sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: Invalid or missing token");
+            return;
+        }
+
+        // Extract username and verify user
+        String username = authService.extractUsername(token);
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        if (userOptional.isEmpty()) {
+            sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: User not found");
+            return;
+        }
+
+        // Get authenticated user and role
+        User authenticatedUser = userOptional.get();
+        Role role = authenticatedUser.getRole();
+        logger.info("Authenticated User: {}, Role: {}", authenticatedUser.getUsername(), role);
+
+        // Role-based access control
+        if (requestURI.startsWith("/admin/") && role != Role.ADMIN) {
+            sendErrorResponse(httpResponse, HttpServletResponse.SC_FORBIDDEN, "Forbidden: Admin access required");
+            return;
+        }
+
+        if (requestURI.startsWith("/api/") && role != Role.CUSTOMER) {
+            sendErrorResponse(httpResponse, HttpServletResponse.SC_FORBIDDEN, "Forbidden: Customer access required");
+            return;
+        }
+
+        // Attach user details to request
+        httpRequest.setAttribute("authenticatedUser", authenticatedUser);
+        chain.doFilter(request, response);
     }
 
-    private boolean isPublic(String uri) {
-
-        for (String path : PUBLIC_PATHS) {
-
-            if (uri.startsWith(path)) {
-                return true;
-            }
-
-        }
-
-        return false;
+    private void setCORSHeaders(HttpServletResponse response) {
+        response.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        response.setHeader("Access-Control-Allow-Credentials", "true");
+        response.setStatus(HttpServletResponse.SC_OK);
     }
 
-    private String getTokenFromCookies(HttpServletRequest request) {
+    private void sendErrorResponse(HttpServletResponse response, int statusCode, String message) throws IOException {
+        response.setStatus(statusCode);
+        response.getWriter().write(message);
+    }
 
-        if (request.getCookies() == null) {
-            return null;
+    private String getAuthTokenFromCookies(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            return Arrays.stream(cookies)
+                    .filter(cookie -> "authToken".equals(cookie.getName()))
+                    .map(Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
         }
-
-        for (Cookie cookie : request.getCookies()) {
-
-            if ("authToken".equals(cookie.getName())) {
-                return cookie.getValue();
-            }
-
-        }
-
         return null;
     }
 }
