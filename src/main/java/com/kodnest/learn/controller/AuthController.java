@@ -15,7 +15,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(
+    origins = {
+        "http://localhost:5173",
+        "https://zippy-parfait-f89cac.netlify.app"
+    },
+    allowCredentials = "true"
+)
 @RequestMapping("/api/auth")
 
 public class AuthController {
