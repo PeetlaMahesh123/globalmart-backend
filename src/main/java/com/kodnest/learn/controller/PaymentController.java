@@ -22,9 +22,9 @@ public class PaymentController {
     private PaymentService paymentService;
 
     /*
-    ---------------------------------------------------
-    CREATE RAZORPAY ORDER
-    ---------------------------------------------------
+    ------------------------------------
+    CREATE ORDER
+    ------------------------------------
     */
     @PostMapping("/create")
     public ResponseEntity<String> createPaymentOrder(
@@ -44,39 +44,34 @@ public class PaymentController {
             BigDecimal totalAmount =
                     new BigDecimal(requestBody.get("totalAmount").toString());
 
-            String razorpayOrderId =
-                    paymentService.createOrder(
-                            user.getUserId(),
-                            totalAmount
-                    );
+            String orderId =
+                    paymentService.createOrder(user.getUserId(), totalAmount);
 
-            return ResponseEntity.ok(razorpayOrderId);
+            return ResponseEntity.ok(orderId);
 
-        }
-        catch (RazorpayException e) {
+        } catch (RazorpayException e) {
 
             e.printStackTrace();
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error creating Razorpay order");
+                    .body("Error creating order");
 
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
 
             e.printStackTrace();
 
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
-                    .body("Invalid request data");
+                    .body("Invalid request");
 
         }
     }
 
     /*
-    ---------------------------------------------------
+    ------------------------------------
     VERIFY PAYMENT
-    ---------------------------------------------------
+    ------------------------------------
     */
     @PostMapping("/verify")
     public ResponseEntity<String> verifyPayment(
@@ -114,7 +109,7 @@ public class PaymentController {
 
             if (verified) {
 
-                return ResponseEntity.ok("Payment verified successfully");
+                return ResponseEntity.ok("Payment successful");
 
             } else {
 
@@ -123,15 +118,13 @@ public class PaymentController {
                         .body("Payment verification failed");
             }
 
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
 
             e.printStackTrace();
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error verifying payment");
-
         }
     }
 }
