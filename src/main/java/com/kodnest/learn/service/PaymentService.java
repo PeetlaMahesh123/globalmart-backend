@@ -41,9 +41,14 @@ public class PaymentService {
         this.cartRepository = cartRepository;
     }
 
+    /*
+     ----------------------------------------------------
+     CREATE RAZORPAY ORDER
+     ----------------------------------------------------
+     */
     @Transactional
-    public String createOrder(int userId,
-                              BigDecimal totalAmount) throws RazorpayException {
+    public String createOrder(int userId, BigDecimal totalAmount)
+            throws RazorpayException {
 
         RazorpayClient razorpayClient =
                 new RazorpayClient(razorpayKeyId, razorpayKeySecret);
@@ -74,6 +79,12 @@ public class PaymentService {
         return razorpayOrder.get("id");
     }
 
+
+    /*
+     ----------------------------------------------------
+     VERIFY PAYMENT
+     ----------------------------------------------------
+     */
     @Transactional
     public boolean verifyPayment(String razorpayOrderId,
                                  String razorpayPaymentId,
@@ -88,25 +99,44 @@ public class PaymentService {
             attributes.put("razorpay_payment_id", razorpayPaymentId);
             attributes.put("razorpay_signature", razorpaySignature);
 
-            boolean isValid =
+            boolean isValidSignature =
                     com.razorpay.Utils.verifyPaymentSignature(
                             attributes,
                             razorpayKeySecret
                     );
 
-            if (!isValid) return false;
+            if (!isValidSignature) {
+                return false;
+            }
 
-            Order order = orderRepository.findById(razorpayOrderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
+            /*
+            -----------------------------------------
+            UPDATE ORDER STATUS
+            -----------------------------------------
+            */
+            Order order = orderRepository
+                    .findById(razorpayOrderId)
+                    .orElseThrow(() ->
+                            new RuntimeException("Order not found"));
 
             order.setStatus(OrderStatus.SUCCESS);
             order.setUpdatedAt(LocalDateTime.now());
 
             orderRepository.save(order);
 
+            /*
+            -----------------------------------------
+            FETCH CART ITEMS
+            -----------------------------------------
+            */
             List<CartItem> cartItems =
                     cartRepository.findCartItemsWithProductDetails(userId);
 
+            /*
+            -----------------------------------------
+            SAVE ORDER ITEMS
+            -----------------------------------------
+            */
             for (CartItem cartItem : cartItems) {
 
                 OrderItem orderItem = new OrderItem();
@@ -116,7 +146,8 @@ public class PaymentService {
                 orderItem.setProductId(
                         cartItem.getProduct().getProductId());
 
-                orderItem.setQuantity(cartItem.getQuantity());
+                orderItem.setQuantity(
+                        cartItem.getQuantity());
 
                 orderItem.setPricePerUnit(
                         cartItem.getProduct().getPrice());
@@ -133,11 +164,17 @@ public class PaymentService {
                 orderItemRepository.save(orderItem);
             }
 
+            /*
+            -----------------------------------------
+            CLEAR CART AFTER PAYMENT SUCCESS
+            -----------------------------------------
+            */
             cartRepository.deleteAllCartItemsByUserId(userId);
 
             return true;
 
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
 
             e.printStackTrace();
             return false;
