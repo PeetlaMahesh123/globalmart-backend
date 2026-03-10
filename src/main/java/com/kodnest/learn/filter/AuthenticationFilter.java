@@ -22,7 +22,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@WebFilter(urlPatterns = {"/api/*","/admin/*"})
+@WebFilter(urlPatterns = {"/api/*", "/admin/*"})
 public class AuthenticationFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class);
@@ -30,7 +30,6 @@ public class AuthenticationFilter implements Filter {
     private final AuthService authService;
     private final UserRepository userRepository;
 
-    // Allow both localhost and Netlify frontend
     private static final String[] ALLOWED_ORIGINS = {
             "http://localhost:5173",
             "https://zippy-parfait-f89cac.netlify.app"
@@ -54,15 +53,15 @@ public class AuthenticationFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        // Always set CORS headers
+        // Always attach CORS headers
         setCORSHeaders(httpRequest, httpResponse);
 
         String requestURI = httpRequest.getRequestURI();
         logger.info("Request URI: {}", requestURI);
 
-        // Allow preflight request
-        if (httpRequest.getMethod().equalsIgnoreCase("OPTIONS")) {
-            httpResponse.setStatus(HttpServletResponse.SC_OK);
+        // Allow preflight requests
+        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
+            chain.doFilter(request, response);
             return;
         }
 
@@ -74,22 +73,22 @@ public class AuthenticationFilter implements Filter {
 
         try {
 
-            // Extract token from cookies
             String token = getAuthTokenFromCookies(httpRequest);
 
             if (token == null || !authService.validateToken(token)) {
-                sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED,
+                sendErrorResponse(httpResponse,
+                        HttpServletResponse.SC_UNAUTHORIZED,
                         "Unauthorized: Invalid or missing token");
                 return;
             }
 
-            // Extract username from token
             String username = authService.extractUsername(token);
 
             Optional<User> userOptional = userRepository.findByUsername(username);
 
             if (userOptional.isEmpty()) {
-                sendErrorResponse(httpResponse, HttpServletResponse.SC_UNAUTHORIZED,
+                sendErrorResponse(httpResponse,
+                        HttpServletResponse.SC_UNAUTHORIZED,
                         "Unauthorized: User not found");
                 return;
             }
@@ -97,34 +96,35 @@ public class AuthenticationFilter implements Filter {
             User authenticatedUser = userOptional.get();
             Role role = authenticatedUser.getRole();
 
-            logger.info("Authenticated user: {}, role: {}", authenticatedUser.getUsername(), role);
+            logger.info("Authenticated user: {}, role: {}",
+                    authenticatedUser.getUsername(), role);
 
-            // Role-based access control
             if (requestURI.startsWith("/admin/") && role != Role.ADMIN) {
-                sendErrorResponse(httpResponse, HttpServletResponse.SC_FORBIDDEN,
+                sendErrorResponse(httpResponse,
+                        HttpServletResponse.SC_FORBIDDEN,
                         "Forbidden: Admin access required");
                 return;
             }
 
             if (requestURI.startsWith("/api/") && role != Role.CUSTOMER) {
-                sendErrorResponse(httpResponse, HttpServletResponse.SC_FORBIDDEN,
+                sendErrorResponse(httpResponse,
+                        HttpServletResponse.SC_FORBIDDEN,
                         "Forbidden: Customer access required");
                 return;
             }
 
-            // Attach authenticated user to request
             httpRequest.setAttribute("authenticatedUser", authenticatedUser);
 
             chain.doFilter(request, response);
 
         } catch (Exception e) {
             logger.error("Authentication filter error", e);
-            sendErrorResponse(httpResponse, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            sendErrorResponse(httpResponse,
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Internal server error");
         }
     }
 
-    // CORS configuration
     private void setCORSHeaders(HttpServletRequest request, HttpServletResponse response) {
 
         String origin = request.getHeader("Origin");
@@ -133,13 +133,19 @@ public class AuthenticationFilter implements Filter {
             response.setHeader("Access-Control-Allow-Origin", origin);
         }
 
-        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        response.setHeader("Access-Control-Allow-Methods",
+                "GET, POST, PUT, DELETE, OPTIONS");
+
+        response.setHeader("Access-Control-Allow-Headers", "*");
+
         response.setHeader("Access-Control-Allow-Credentials", "true");
+
+        response.setHeader("Access-Control-Max-Age", "3600");
     }
 
-    private void sendErrorResponse(HttpServletResponse response, int statusCode, String message)
-            throws IOException {
+    private void sendErrorResponse(HttpServletResponse response,
+                                   int statusCode,
+                                   String message) throws IOException {
 
         response.setStatus(statusCode);
         response.getWriter().write(message);
