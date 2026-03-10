@@ -16,10 +16,13 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "https://zippy-parfait-f89cac.netlify.app"
-}, allowCredentials = "true")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://zippy-parfait-f89cac.netlify.app"
+        },
+        allowCredentials = "true"
+)
 public class AuthController {
 
     private final AuthService authService;
@@ -28,30 +31,23 @@ public class AuthController {
         this.authService = authService;
     }
 
-    /*
-     * ========================================
-     * LOGIN API
-     * ========================================
-     */
+    // LOGIN
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
                                    HttpServletResponse response) {
 
         try {
 
-            // Authenticate user
             User user = authService.authenticate(
                     loginRequest.getUsername(),
                     loginRequest.getPassword()
             );
 
-            // Generate JWT token
             String token = authService.generateToken(user);
 
-            // Create cookie
             Cookie cookie = new Cookie("authToken", token);
             cookie.setHttpOnly(true);
-            cookie.setSecure(false); // set true if using HTTPS
+            cookie.setSecure(true); // IMPORTANT FOR HTTPS
             cookie.setPath("/");
             cookie.setMaxAge(3600);
 
@@ -75,11 +71,7 @@ public class AuthController {
         }
     }
 
-    /*
-     * ========================================
-     * GET CURRENT USER
-     * ========================================
-     */
+    // CURRENT USER
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(HttpServletRequest request){
 
@@ -101,42 +93,20 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /*
-     * ========================================
-     * LOGOUT API
-     * ========================================
-     */
+    // LOGOUT
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request,
-                                    HttpServletResponse response) {
+    public ResponseEntity<?> logout(HttpServletResponse response) {
 
-        try {
+        Cookie cookie = new Cookie("authToken", null);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
 
-            User user = (User) request.getAttribute("authenticatedUser");
+        response.addCookie(cookie);
 
-            if(user != null){
-                authService.logout(user);
-            }
-
-            Cookie cookie = new Cookie("authToken", null);
-            cookie.setHttpOnly(true);
-            cookie.setPath("/");
-            cookie.setMaxAge(0);
-
-            response.addCookie(cookie);
-
-            return ResponseEntity.ok(
-                    Map.of("message","Logout successful")
-            );
-
-        }
-        catch(Exception e){
-
-            return ResponseEntity
-                    .status(500)
-                    .body(Map.of("message","Logout failed"));
-
-        }
+        return ResponseEntity.ok(
+                Map.of("message","Logout successful")
+        );
     }
-
 }
