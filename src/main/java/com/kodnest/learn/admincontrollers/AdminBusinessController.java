@@ -9,10 +9,12 @@ import java.time.LocalDate;
 import java.util.Map;
 
 @RestController
-    @CrossOrigin(
+   @CrossOrigin(
     origins = {
         "http://localhost:5173",
-        "https://zippy-parfait-f89cac.netlify.app"
+        "https://zippy-parfait-f89cac.netlify.app",
+        "https://peetlamahesh123.github.io",
+        "https://peetlamahesh123.github.io/globalmart"
     },
     allowCredentials = "true"
 )
