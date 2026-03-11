@@ -17,7 +17,9 @@ import com.kodnest.learn.service.UserService;
 @CrossOrigin(
     origins = {
         "http://localhost:5173",
-        "https://zippy-parfait-f89cac.netlify.app"
+        "https://zippy-parfait-f89cac.netlify.app",
+        "https://peetlamahesh123.github.io",
+        "https://peetlamahesh123.github.io/globalmart"
     },
     allowCredentials = "true"
 )
