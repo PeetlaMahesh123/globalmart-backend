@@ -32,7 +32,9 @@ public class AuthenticationFilter implements Filter {
 
     private static final String[] ALLOWED_ORIGINS = {
             "http://localhost:5173",
-            "https://zippy-parfait-f89cac.netlify.app"
+            "https://zippy-parfait-f89cac.netlify.app",
+            "https://peetlamahesh123.github.io",
+            "https://peetlamahesh123.github.io/globalmart"
     };
 
     private static final String[] UNAUTHENTICATED_PATHS = {
